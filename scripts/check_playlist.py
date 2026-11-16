@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Update existing SmartTV entries from iptv-org's public playlist, then check URLs.
+"""Update existing SmartTV entries from iptv-org Argentina, Mexico and US lists.
 
 Only exact tvg-id matches are eligible. The script never adds or deletes channels.
-If an upstream replacement cannot be reached, the current URL is kept.
+If no reachable replacement is found, the current URL is kept.
 """
 import re
-import urllib.error
 import urllib.request
 from pathlib import Path
 
 PLAYLIST = Path("SmartTV.m3u")
-SOURCE_URL = "https://iptv-org.github.io/iptv/index.m3u"
+SOURCE_URLS = [
+    "https://iptv-org.github.io/iptv/countries/ar.m3u",
+    "https://iptv-org.github.io/iptv/countries/mx.m3u",
+    "https://iptv-org.github.io/iptv/countries/us.m3u",
+]
 HEADERS = {
     "User-Agent": "Mozilla/5.0 SmartTV-Playlist-Updater",
     "Range": "bytes=0-0",
@@ -56,27 +59,30 @@ local_entries = list(entries(original))
 wanted_ids = {item[0] for item in local_entries if item[0]}
 print(f"Canales existentes con tvg-id: {len(wanted_ids)}")
 
-print("Descargando la lista global de iptv-org (todos los países)...")
-upstream_lines = fetch_text(SOURCE_URL).splitlines()
+# All three source lists must download successfully; otherwise do not partially update.
 candidates = {}
-for tvg_id, _, _, url in entries(upstream_lines):
-    if tvg_id in wanted_ids and tvg_id not in candidates:
-        candidates[tvg_id] = url
+for source_url in SOURCE_URLS:
+    print(f"Descargando: {source_url}")
+    upstream_lines = fetch_text(source_url).splitlines()
+    for tvg_id, _, _, url in entries(upstream_lines):
+        if tvg_id in wanted_ids:
+            candidates.setdefault(tvg_id, []).append(url)
 
 updated_ids = set()
 updated_count = 0
-checked_candidates = {}
 for tvg_id, _, url_index, old_url in local_entries:
     if not tvg_id or tvg_id in updated_ids or tvg_id not in candidates:
         continue
-    new_url = candidates[tvg_id]
-    if new_url == old_url:
+    possible_urls = candidates[tvg_id]
+    if old_url in possible_urls:
         updated_ids.add(tvg_id)
         continue
-    if tvg_id not in checked_candidates:
-        checked_candidates[tvg_id] = reachable(new_url)
-    if checked_candidates[tvg_id]:
-        original[url_index] = new_url
+    replacement = next(
+        (url for url in possible_urls if url != old_url and reachable(url)),
+        None,
+    )
+    if replacement:
+        original[url_index] = replacement
         updated_ids.add(tvg_id)
         updated_count += 1
 
@@ -85,7 +91,7 @@ if updated_count:
 print(f"Canales actualizados: {updated_count}")
 print(f"Canales sin coincidencia o sin reemplazo verificable: {len(wanted_ids - updated_ids)}")
 
-# Check the resulting playlist; this is a basic HTTP check, not a playback guarantee.
+# Basic HTTP reachability check; it does not guarantee video playback.
 final_lines = PLAYLIST.read_text(encoding="utf-8", errors="replace").splitlines()
 urls = [line.strip() for line in final_lines if line.strip().startswith(("http://", "https://"))]
 failed = []
@@ -99,7 +105,9 @@ for url in urls:
 
 with Path("check-report.md").open("w", encoding="utf-8") as out:
     out.write("# Informe de actualización SmartTV\n\n")
-    out.write(f"- Fuente: [iptv-org, lista global de todos los países]({SOURCE_URL})\n")
+    out.write("- Fuentes: Argentina (ar), México (mx) y Estados Unidos (us) de iptv-org\n")
+    for source_url in SOURCE_URLS:
+        out.write(f"  - {source_url}\n")
     out.write("- Método: coincidencia exacta por tvg-id\n")
     out.write("- Canales agregados o eliminados: 0\n")
     out.write(f"- Canales actualizados: {updated_count}\n")
