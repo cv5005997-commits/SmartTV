@@ -1,0 +1,30 @@
+name: Comprobar enlaces SmartTV
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Comprobar enlaces de la lista
+        run: python scripts/check_playlist.py
+      - name: Publicar informe
+        if: always()
+        run: |
+          if [ -f check-report.md ]; then
+            cat check-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No se pudo generar el informe. Verifica que exista SmartTV.m3u." >> "$GITHUB_STEP_SUMMARY"
+          fi
