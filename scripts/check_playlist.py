@@ -70,8 +70,18 @@ for source_url in SOURCE_URLS:
 
 updated_ids = set()
 updated_count = 0
+# Preserve channels whose streams were selected manually by the repository owner.
+MANUAL_IDS = {
+    "MTVLatinAmerica.us@Panregional",
+    "FoxSports.ar@SD",
+    "FoxSports.ar@HD",
+    "TyCSports.ar@SD",
+}
 for tvg_id, _, url_index, old_url in local_entries:
     if not tvg_id or tvg_id in updated_ids or tvg_id not in candidates:
+        continue
+    if tvg_id in MANUAL_IDS:
+        updated_ids.add(tvg_id)
         continue
     possible_urls = candidates[tvg_id]
     if old_url in possible_urls:
