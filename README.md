@@ -2,10 +2,10 @@
 
 ## Lista IPTV
 
-**Enlace para copiar y compartir:**
+**Enlace directo para copiar y compartir:**
 
-### https://is.gd/Yal5Ft
+https://raw.githubusercontent.com/cv5005997-commits/SmartTV/main/SmartTV.m3u
 
-Pegá ese enlace en Televizo o en tu reproductor IPTV.
+Pegá este enlace en Televizo o en tu reproductor IPTV.
 
 La lista se actualiza desde este repositorio.
