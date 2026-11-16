@@ -1,4 +1,4 @@
-name: Comprobar enlaces SmartTV
+name: Actualizar y comprobar SmartTV
 
 on:
   workflow_dispatch:
@@ -6,20 +6,33 @@ on:
     - cron: "17 */6 * * *"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  check:
+  update:
     runs-on: ubuntu-latest
     steps:
       - name: Descargar repositorio
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Preparar Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Comprobar enlaces de la lista
+      - name: Actualizar canales desde iptv-org y comprobar enlaces
         run: python scripts/check_playlist.py
+      - name: Guardar cambios en SmartTV.m3u
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SmartTV.m3u
+          if ! git diff --cached --quiet; then
+            git commit -m "Actualizar enlaces IPTV desde iptv-org"
+            git push
+          else
+            echo "No hay enlaces nuevos para guardar."
+          fi
       - name: Publicar informe
         if: always()
         run: |
